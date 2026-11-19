@@ -1,0 +1,11 @@
+
+node_modules
+frontend/node_modules
+backend/config.php
+api-config.php
+.env
+**/.env
+.git
+.gitignore
+releases
+dist
