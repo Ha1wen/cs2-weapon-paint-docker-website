@@ -1,12 +1,13 @@
+
 FROM php:8.3-apache
 
-# Install PHP extensions
+# PHP extensions
 RUN docker-php-ext-install pdo pdo_mysql
 
-# Enable Apache modules
+# Apache modules
 RUN a2enmod rewrite headers
 
-# Install system dependencies
+# System dependencies
 RUN apt-get update && apt-get install -y \
     curl \
     unzip \
@@ -14,49 +15,56 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 22
+# Node.js 22
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install pnpm
-RUN npm install -g pnpm@9
+# Install the package manager version specified by package.json
+RUN npm install -g pnpm@10.33.0
 
-# Verify installations
-RUN node --version && npm --version && pnpm --version
+RUN node --version && pnpm --version
 
-# Set working directory
-WORKDIR /var/www/html
+# Build the project outside the public web directory
+WORKDIR /build
 
-# Copy project files
 COPY . .
 
-# Install root dependencies
+# Root dependencies
 RUN pnpm install --prod=false
 
-# IMPORTANT: Install frontend dependencies separately
+# Frontend dependencies
 RUN pnpm --dir frontend install --prod=false
 
-# Verify Vite is installed
+# Verify Vite
 RUN pnpm --dir frontend exec vite --version
 
 # Build production release
 RUN pnpm release
 
-# Copy production release
-RUN cp -a releases/newest-release/. /var/www/html/
+# Copy ONLY the production release to Apache
+RUN mkdir -p /var/www/html \
+    && cp -a /build/releases/newest-release/. /var/www/html/ \
+    && rm -rf /build
 
-# Configure Apache for Render
-RUN sed -i 's/Listen 80/Listen 10000/' /etc/apache2/ports.conf
+# Enable .htaccess for React routing
+RUN sed -ri 's/AllowOverride None/AllowOverride All/g' \
+    /etc/apache2/apache2.conf
 
-RUN sed -i 's/:80/:10000/' \
+# Configure Apache for Render port 10000
+RUN sed -i 's/Listen 80/Listen 10000/' \
+    /etc/apache2/ports.conf \
+    && sed -i 's/<VirtualHost \*:80>/<VirtualHost *:10000>/' \
     /etc/apache2/sites-available/000-default.conf
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html
+# Prepare writable PHP storage
+RUN mkdir -p \
+    /var/www/html/api/storage/sessions \
+    /var/www/html/api/storage/cache \
+    /var/www/html/api/storage/ratelimit \
+    && chown -R www-data:www-data /var/www/html
 
-# Expose Render port
 EXPOSE 10000
 
-# Start Apache
-CMD ["apache2-foreground"]
+# Load private configuration at container startup
+CMD ["sh", "-c", "test -f /etc/secrets/api-config.php || { echo 'Missing Render Secret File: api-config.php'; exit 1; }; cp /etc/secrets/api-config.php /var/www/html/api/config.php && chown www-data:www-data /var/www/html/api/config.php && chmod 640 /var/www/html/api/config.php && chown -R www-data:www-data /var/www/html/api/storage && exec apache2-foreground"]
