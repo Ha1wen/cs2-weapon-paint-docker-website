@@ -46,12 +46,6 @@ RUN pnpm release
 # Copy production release
 RUN cp -a releases/newest-release/. /var/www/html/
 
-# Build production release
-RUN pnpm release
-
-# Copy production release
-RUN cp -a releases/newest-release/. /var/www/html/
-
 # Configure Apache for Render
 RUN sed -i 's/Listen 80/Listen 10000/' /etc/apache2/ports.conf
 
