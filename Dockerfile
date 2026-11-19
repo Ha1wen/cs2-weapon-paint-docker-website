@@ -32,7 +32,7 @@ WORKDIR /var/www/html
 COPY . .
 
 # Install dependencies
-RUN pnpm install
+RUN pnpm install --prod=false
 
 # Build production release
 RUN pnpm release
