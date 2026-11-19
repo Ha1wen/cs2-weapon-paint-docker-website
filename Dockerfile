@@ -31,8 +31,20 @@ WORKDIR /var/www/html
 # Copy project files
 COPY . .
 
-# Install dependencies
+# Install root dependencies
 RUN pnpm install --prod=false
+
+# IMPORTANT: Install frontend dependencies separately
+RUN pnpm --dir frontend install --prod=false
+
+# Verify Vite is installed
+RUN pnpm --dir frontend exec vite --version
+
+# Build production release
+RUN pnpm release
+
+# Copy production release
+RUN cp -a releases/newest-release/. /var/www/html/
 
 # Build production release
 RUN pnpm release
