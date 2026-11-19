@@ -12,10 +12,10 @@ RUN apt-get update && apt-get install -y \
     curl unzip git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL https://get.pnpm.io/install.sh | SHELL=/bin/bash bash
+RUN corepack enable
+RUN corepack prepare pnpm@latest --activate
 
-ENV PNPM_HOME="/root/.local/share/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
+RUN pnpm --version
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs
